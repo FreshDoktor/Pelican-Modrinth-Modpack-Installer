@@ -1,0 +1,18 @@
+{
+    "id": "minecraft-modpack-modrinth",
+    "name": "Minecraft Modpack Modrinth",
+    "author": "Cedric Kassen",
+    "version": "1.0.0",
+    "description": "Easily install, update, and manage minecraft modpacks from modrinth",
+    "category": "plugin",
+    "url": null,
+    "update_url": null,
+    "namespace": "CedricKassen\\MinecraftModpackModrinth",
+    "class": "MinecraftModpackModrinthPlugin",
+    "panels": [
+        "server"
+    ],
+    "panel_version": null,
+    "api_version": 1,
+    "composer_packages": null
+}
