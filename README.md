@@ -24,7 +24,7 @@ Originally written by Cedric Kassen, extended with the _Installed Mods_ manageme
 
 ### General
 
-- **Integrates with Minecraft Modrinth**: Combines mods and modpacks on one page if the Minecraft Modrinth plugin is installed too
+- **Integrates with Minecraft Modrinth**: Combines mods and modpacks on one page if the Minecraft Modrinth plugin is installed and enabled too
 - **Multilingual**: Supports English and German translations
 
 ## Requirements
@@ -56,7 +56,7 @@ The server itself is not changed: install the matching loader and Minecraft vers
 
 ### Together with Minecraft Modrinth
 
-If the Minecraft Modrinth plugin is installed too, its "Minecraft Mods" page is replaced in the navigation by one that adds the _Modpacks_, _Installed Mods_ and _Installed Modpacks_ tabs, and the standalone modpack page disappears. Minecraft Modrinth itself is not modified and can be updated as usual.
+If the Minecraft Modrinth plugin is installed and enabled too, its "Minecraft Mods" page is replaced in the navigation by one that adds the _Modpacks_, _Installed Mods_ and _Installed Modpacks_ tabs, and the standalone modpack page disappears. Minecraft Modrinth itself is not modified and can be updated as usual. While it is missing, not installed or disabled, this plugin only shows its own standalone modpack page.
 
 ### Installed Mods
 

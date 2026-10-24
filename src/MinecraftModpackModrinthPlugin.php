@@ -26,7 +26,7 @@ class MinecraftModpackModrinthPlugin implements Plugin
 
         $panel->discoverPages(plugin_path($this->getId(), "src/Filament/$id/Pages"), "CedricKassen\\MinecraftModpackModrinth\\Filament\\$id\\Pages");
 
-        // With minecraft-modrinth installed, the modpacks become tabs of its mods page.
+        // With minecraft-modrinth enabled, the modpacks become tabs of its mods page.
         MinecraftModrinthIntegration::registerPages($panel);
     }
 

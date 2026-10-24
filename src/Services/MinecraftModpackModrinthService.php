@@ -623,7 +623,7 @@ class MinecraftModpackModrinthService
      */
     public function syncModrinthModsMetadata(Server $server, ?string $modpackProjectId, array $files, array $replaceModpacks): void
     {
-        if (!MinecraftModrinthIntegration::isModrinthPluginInstalled()) {
+        if (!MinecraftModrinthIntegration::isModrinthPluginEnabled()) {
             return;
         }
 

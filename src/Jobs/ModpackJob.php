@@ -343,7 +343,7 @@ class ModpackJob implements ShouldQueue
      */
     protected function syncModrinthMods(Server $server, MinecraftModpackModrinthService $service, ?string $modpackProjectId, array $files, array $replaceModpacks): void
     {
-        if (!MinecraftModrinthIntegration::isModrinthPluginInstalled()) {
+        if (!MinecraftModrinthIntegration::isModrinthPluginEnabled()) {
             return;
         }
 
