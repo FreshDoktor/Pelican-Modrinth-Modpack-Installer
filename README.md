@@ -40,7 +40,7 @@ Clone the repository into the `plugins` folder of your panel. The folder has to 
 
 ```bash
 cd /var/www/pelican/plugins
-git clone https://github.com/freshgaming-eu/Pelican-Modrinth-Modpack-Installer.git minecraft-modpack-modrinth
+git clone https://github.com/FreshDoktor/Pelican-Modrinth-Modpack-Installer.git minecraft-modpack-modrinth
 ```
 
 Then install and enable the plugin in the admin area of the panel under _Plugins_.
