@@ -2,9 +2,9 @@
 
 namespace CedricKassen\MinecraftModpackModrinth;
 
-use CedricKassen\MinecraftModpackModrinth\Integration\MinecraftModrinthIntegration;
-use CedricKassen\MinecraftModpackModrinth\Livewire\InstalledModsBrowser;
+use CedricKassen\MinecraftModpackModrinth\Integration\ModpacksSection;
 use CedricKassen\MinecraftModpackModrinth\Livewire\ModpackBrowser;
+use CedricKassen\MinecraftModpackModrinth\ModrinthHub\ModrinthHub;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
 use Livewire\Livewire;
@@ -20,19 +20,16 @@ class MinecraftModpackModrinthPlugin implements Plugin
     {
         // Registered by name so Livewire finds the component again on updates, wherever it got embedded.
         Livewire::component('minecraft-modpack-modrinth.modpack-browser', ModpackBrowser::class);
-        Livewire::component('minecraft-modpack-modrinth.installed-mods-browser', InstalledModsBrowser::class);
 
-        $id = str($panel->getId())->title();
+        // The modpacks are a tab of the Modrinth page, hosted by this plugin unless another one already does.
+        ModrinthHub::registerSection(ModpacksSection::class);
 
-        $panel->discoverPages(plugin_path($this->getId(), "src/Filament/$id/Pages"), "CedricKassen\\MinecraftModpackModrinth\\Filament\\$id\\Pages");
-
-        // With minecraft-modrinth enabled, the modpacks become tabs of its mods page.
-        MinecraftModrinthIntegration::registerPages($panel);
+        ModrinthHub::registerPage($panel);
     }
 
     public function boot(Panel $panel): void
     {
-        // Runs once all plugins registered their pages, so the original mods page is known by now.
-        MinecraftModrinthIntegration::hideOriginalModPage($panel);
+        // Runs once all plugins registered their pages, so the mods page of minecraft-modrinth is known by now.
+        ModrinthHub::boot($panel);
     }
 }

@@ -11,9 +11,7 @@ use CedricKassen\MinecraftModpackModrinth\Integration\MinecraftModrinthIntegrati
 use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -323,86 +321,6 @@ class MinecraftModpackModrinthService
         cache()->put($key, $versions, now()->addMinutes(empty($versions) ? self::EMPTY_VERSIONS_CACHE_MINUTES : self::VERSIONS_CACHE_MINUTES));
 
         return $versions;
-    }
-
-    /**
-     * The compatible versions of several projects at once, fetched in parallel. Shares its cache
-     * with getProjectVersions().
-     *
-     * @param  array<int, string>  $projectIds
-     * @return array<string, array<int, mixed>> versions by project id
-     */
-    public function getProjectVersionsBulk(array $projectIds, Server $server): array
-    {
-        $projectIds = array_values(array_unique(array_filter($projectIds, 'is_string')));
-
-        $minecraftLoader = $this->getLoaderFromServer($server);
-
-        if (empty($projectIds) || !$minecraftLoader) {
-            return array_fill_keys($projectIds, []);
-        }
-
-        $minecraftVersion = $this->getMinecraftVersion($server);
-        $minecraftLoader = $minecraftLoader['name'];
-
-        $results = [];
-        $missing = [];
-
-        foreach ($projectIds as $projectId) {
-            $cached = cache()->get($this->getVersionsCacheKey($projectId, $minecraftVersion, $minecraftLoader));
-
-            if (is_array($cached)) {
-                $results[$projectId] = $cached;
-            } else {
-                $missing[] = $projectId;
-            }
-        }
-
-        if (empty($missing)) {
-            return $results;
-        }
-
-        $query = ['loaders' => '["' . $minecraftLoader . '"]'];
-
-        if ($minecraftVersion) {
-            $query['game_versions'] = '["' . $minecraftVersion . '"]';
-        }
-
-        try {
-            $responses = Http::pool(fn (Pool $pool) => array_map(
-                fn (string $projectId) => $pool->as($projectId)
-                    ->asJson()
-                    ->timeout(10)
-                    ->connectTimeout(5)
-                    ->get('https://api.modrinth.com/v2/project/'.rawurlencode($projectId).'/version', $query),
-                $missing
-            ));
-        } catch (Exception $exception) {
-            report($exception);
-
-            $responses = [];
-        }
-
-        foreach ($missing as $projectId) {
-            $response = $responses[$projectId] ?? null;
-
-            // Not cached on purpose, an empty list would hide the update action for a while.
-            if (!$response instanceof Response || !$response->successful()) {
-                $results[$projectId] = [];
-
-                continue;
-            }
-
-            $versions = $response->json();
-            $versions = is_array($versions) ? $versions : [];
-            usort($versions, fn ($a, $b) => strcmp($b['date_published'] ?? '', $a['date_published'] ?? ''));
-
-            cache()->put($this->getVersionsCacheKey($projectId, $minecraftVersion, $minecraftLoader), $versions, now()->addMinutes(empty($versions) ? self::EMPTY_VERSIONS_CACHE_MINUTES : self::VERSIONS_CACHE_MINUTES));
-
-            $results[$projectId] = $versions;
-        }
-
-        return $results;
     }
 
     /**

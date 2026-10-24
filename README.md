@@ -1,8 +1,8 @@
 # Minecraft Modpack Modrinth
 
-A [Pelican Panel](https://pelican.dev) plugin to install, update and manage Minecraft modpacks from [Modrinth](https://modrinth.com) directly within the server panel, and to keep track of every mod on the server, including the ones uploaded by hand.
+A [Pelican Panel](https://pelican.dev) plugin to install, update and manage Minecraft modpacks from [Modrinth](https://modrinth.com) directly within the server panel.
 
-Originally written by Cedric Kassen, extended with the _Installed Mods_ management by [FreshGaming](https://github.com/freshgaming-eu).
+Originally written by Cedric Kassen. The overview of every installed mod, including the ones uploaded by hand, is a plugin of its own now: [Minecraft Mods Addon](https://github.com/FreshDoktor/Pelican-Modrinth-Mods-Addon), an addon for the Minecraft Modrinth plugin by Boy132.
 
 ## Features
 
@@ -15,16 +15,9 @@ Originally written by Cedric Kassen, extended with the _Installed Mods_ manageme
 - **Easy Uninstall**: Removes every file the modpack placed, worlds and other files are kept
 - **Safe by Default**: Only downloads from the hosts allowed by the `.mrpack` specification and rejects paths escaping the server directory
 
-### Installed Mods
-
-- **Every jar in the `mods` folder**: Lists not only the mods installed from Modrinth, but also the ones placed by a modpack or uploaded by hand
-- **Background Analysis**: Reads name, version, loader, supported Minecraft version and client-only mods from the jar itself; mods made for another loader than the server's are highlighted
-- **Link to Modrinth**: Uploaded mods can be linked to a Modrinth project, mods Modrinth recognises by their hash can be linked all at once; linked mods are updated like any other Modrinth mod
-- **Manage each mod**: Update, link, unlink and delete mods right from the list
-
 ### General
 
-- **Integrates with Minecraft Modrinth**: Combines mods and modpacks on one page if the Minecraft Modrinth plugin is installed and enabled too
+- **One Modrinth page**: Mods (Minecraft Modrinth), modpacks and datapacks (Minecraft Datapack Modrinth) share one navigation entry with a tab each and a toggle to only show what is installed, as far as the plugins are enabled
 - **Multilingual**: Supports English and German translations
 
 ## Requirements
@@ -32,7 +25,7 @@ Originally written by Cedric Kassen, extended with the _Installed Mods_ manageme
 - Pelican Panel with plugin support
 - A Minecraft egg with a loader supported by Modrinth modpacks (Fabric, Quilt, Forge or NeoForge)
 - A running queue worker (see [Setup](#setup))
-- Optional: the [Minecraft Modrinth](https://github.com/pelican-dev/plugins/tree/main/minecraft-modrinth) plugin
+- Optional: the [Minecraft Modrinth](https://github.com/pelican-dev/plugins/tree/main/minecraft-modrinth), [Minecraft Datapack Modrinth](https://github.com/FreshDoktor/Pelican-Minecraft-Datapack-Installer) and [Minecraft Mods Addon](https://github.com/FreshDoktor/Pelican-Modrinth-Mods-Addon) plugins
 
 ## Installation
 
@@ -47,33 +40,31 @@ Then install and enable the plugin in the admin area of the panel under _Plugins
 
 ## Setup
 
-The modpack page uses the same egg feature as the mods page of the Minecraft Modrinth plugin: add `modrinth_mods` to the _features_ of your egg (or `mods` together with the `minecraft` tag).
+The modpacks use the same egg feature as the mods page of the Minecraft Modrinth plugin: add `modrinth_mods` to the _features_ of your egg (or `mods` together with the `minecraft` tag).
 Also make sure your egg has the `minecraft` _tag_ and a tag matching a Modrinth loader name that supports modpacks (e.g. `fabric`, `quilt`, `forge` or `neoforge`).
 
-Installing, updating and uninstalling modpacks as well as analysing uploaded mods runs in the background, so the panel's **queue worker must be running** (`pelican-queue` service, or `php artisan queue:work`).
+Installing, updating and uninstalling modpacks runs in the background, so the panel's **queue worker must be running** (`pelican-queue` service, or `php artisan queue:work`).
 
 The server itself is not changed: install the matching loader and Minecraft version through the egg yourself. Only modpack versions matching the server's loader and `MINECRAFT_VERSION` are listed.
 
-### Together with Minecraft Modrinth
+### The Modrinth page
 
-If the Minecraft Modrinth plugin is installed and enabled too, its "Minecraft Mods" page is replaced in the navigation by one that adds the _Modpacks_, _Installed Mods_ and _Installed Modpacks_ tabs, and the standalone modpack page disappears. Minecraft Modrinth itself is not modified and can be updated as usual. While it is missing, not installed or disabled, this plugin only shows its own standalone modpack page.
+Modpacks are shown on a page that combines everything from Modrinth in one navigation entry, with a tab each for _Mods_, _Modpacks_ and _Datapacks_ and an _Only show installed_ toggle below the tabs:
+
+| Plugins enabled | Tabs | Navigation entry |
+| --- | --- | --- |
+| Only this one | Modpacks | Modrinth Modpacks |
+| With [Minecraft Modrinth](https://github.com/pelican-dev/plugins/tree/main/minecraft-modrinth) | Mods, Modpacks | Modrinth |
+| With [Minecraft Datapack Modrinth](https://github.com/FreshDoktor/Pelican-Minecraft-Datapack-Installer) | Modpacks, Datapacks | Modrinth |
+| All three | Mods, Modpacks, Datapacks | Modrinth |
+
+Only the tabs that fit the server are shown, a server with just one of them names the entry after it. If Minecraft Modrinth is enabled, its "Minecraft Mods" page leaves the navigation, its mods are the _Mods_ tab now. Minecraft Modrinth itself is not modified and can be updated as usual.
+
+None of the plugins depends on another. This plugin, Minecraft Datapack Modrinth and Minecraft Mods Addon each ship the page (`src/ModrinthHub`), the first one enabled hosts it and the others add their tabs. Keep the copies in sync when changing it.
 
 ### Installed Mods
 
-The _Installed Mods_ tab lists **every jar in the `mods` folder**, not only the ones installed from Modrinth:
-
-| Source | Meaning |
-| --- | --- |
-| Modrinth | Linked to a Modrinth project, updates are offered |
-| Modpack | Placed by the installed modpack |
-| Found on Modrinth | Uploaded by hand, Modrinth knows this exact file (by its SHA-1 hash) |
-| Uploaded | Uploaded by hand, not found on Modrinth |
-| Analysing | Not read yet |
-| File missing | Listed as installed, but the jar is gone |
-
-Uploaded mods are read in the background by the queue worker: name, mod id, version, loader, supported Minecraft version and client-only mods are taken from the metadata inside the jar (`fabric.mod.json`, `quilt.mod.json`, `META-INF/mods.toml`, `META-INF/neoforge.mods.toml`, `mcmod.info`), falling back to the file name. Mods made for another loader than the server's are highlighted.
-
-Any uploaded mod can be **linked to a Modrinth project** afterwards (search by name or paste a Modrinth link). Mods Modrinth recognised are pre-selected with their exact version and can be linked all at once. Linking adds the mod to the installed list of Minecraft Modrinth (`mods/.modrinth-metadata.json`), from then on it is updated like a mod installed from Modrinth, in this tab as well as in the _Mods_ tab. If the installed version is unknown, every compatible version is offered as an update.
+With _Only show installed_ turned on, the _Mods_ tab shows the installed list of Minecraft Modrinth. Install Minecraft Mods Addon to list every jar in the `mods` folder there instead, including the ones uploaded by hand, and to link them to Modrinth. It marks the mods placed by the modpack installed with this plugin.
 
 ## Configuration
 
@@ -82,9 +73,8 @@ Any uploaded mod can be **linked to a Modrinth project** afterwards (search by n
 | `MODRINTH_MODPACK_MAX_SIZE_MB` | `500` | Largest `.mrpack` the panel will download |
 | `MODRINTH_MODPACK_JOB_TIMEOUT` | `2700` | Seconds a single operation may run |
 | `MODRINTH_MODPACK_BACKUP_TIMEOUT` | `900` | Seconds to wait for a backup to finish |
-| `MODRINTH_MODPACK_MAX_MOD_SCAN_SIZE_MB` | `64` | Largest mod jar that is read to identify it, bigger ones are only judged by their file name |
 
-Installed modpack data is kept in `.modrinth-modpack.json` in the server's root folder. What was read from uploaded mods is cached in the panel's cache, _Analyse again_ in the _Installed Mods_ tab throws it away.
+Installed modpack data is kept in `.modrinth-modpack.json` in the server's root folder.
 
 ## License
 

@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\Facade;
  * @method static array{hits: array<int, array<string, mixed>>, total_hits: int} getProjects(Server $server, int $page = 1, ?string $search = null)
  * @method static array<string, mixed> getInstalledModpackFromModrinth(array $installedModpack)
  * @method static array<int, array<string, mixed>> getProjectVersions(string $projectId, Server $server)
- * @method static array<string, array<int, mixed>> getProjectVersionsBulk(array<int, string> $projectIds, Server $server)
  * @method static array<string, mixed>|null getVersion(string $versionId)
  * @method static array{url: string, filename: string, size?: int, primary?: bool}|null getMrpackFile(array<int, mixed> $files)
  * @method static InstalledModpack|null getInstalledModpack(Server $server)
