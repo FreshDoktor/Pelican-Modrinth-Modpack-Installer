@@ -2,6 +2,7 @@
 
 namespace CedricKassen\MinecraftModpackModrinth\Livewire;
 
+use App\Facades\Activity;
 use App\Models\Server;
 use CedricKassen\MinecraftModpackModrinth\Facades\MinecraftModpackModrinth;
 use CedricKassen\MinecraftModpackModrinth\Jobs\ModpackJob;
@@ -338,7 +339,7 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
                 'slug' => $record['slug'],
                 'title' => $record['title'],
                 'author' => $record['author'] ?? null,
-            ], $versionId, $createBackup);
+            ], $versionId, $createBackup, user()?->id);
         } catch (Exception $exception) {
             report($exception);
 
@@ -354,6 +355,14 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
         }
 
         $this->trackedStatus = 'queued';
+
+        Activity::event("server:modpack.$operation")
+            ->subject($server)
+            ->property([
+                'name' => $record['title'],
+                'version' => $versionNumber ?? '',
+            ])
+            ->log();
 
         Notification::make()
             ->title(trans('minecraft-modpack-modrinth::strings.notifications.queued'))
@@ -649,7 +658,17 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
                     ->modalHeading(trans('minecraft-modpack-modrinth::strings.modals.cancel_heading'))
                     ->modalDescription(trans('minecraft-modpack-modrinth::strings.modals.cancel_description'))
                     ->action(function () {
+                        $progress = $this->getProgress();
+
                         MinecraftModpackModrinth::cancelOperation($this->getServer());
+
+                        Activity::event('server:modpack.cancel')
+                            ->subject($this->getServer())
+                            ->property([
+                                'name' => $progress['title'] ?? '',
+                                'operation' => $progress['operation'] ?? '',
+                            ])
+                            ->log();
 
                         $this->trackedStatus = 'cancelled';
                         $this->forgetInstalledState();

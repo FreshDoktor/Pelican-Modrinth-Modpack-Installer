@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Installing, updating, uninstalling and cancelling a modpack shows up in the server's activity log together with the user who did it, as does the backup created beforehand
+
 ## 1.0.1 - 2026-10-24
 
 ### Removed

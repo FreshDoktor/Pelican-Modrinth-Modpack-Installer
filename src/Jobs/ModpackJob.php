@@ -2,7 +2,9 @@
 
 namespace CedricKassen\MinecraftModpackModrinth\Jobs;
 
+use App\Facades\Activity;
 use App\Models\Server;
+use App\Models\User;
 use CedricKassen\MinecraftModpackModrinth\Exceptions\ModpackCancelledException;
 use CedricKassen\MinecraftModpackModrinth\Exceptions\ModpackException;
 use CedricKassen\MinecraftModpackModrinth\Integration\MinecraftModrinthIntegration;
@@ -54,6 +56,9 @@ class ModpackJob implements ShouldQueue
 
     protected ?string $tempFile = null;
 
+    /** Who started the operation. The queue has no logged in user, so the activity log needs it from here. */
+    public ?int $userId = null;
+
     /**
      * @param  array{id: string, slug: string, title: string, author?: ?string}  $project
      */
@@ -64,7 +69,10 @@ class ModpackJob implements ShouldQueue
         public array $project,
         public ?string $versionId,
         public bool $createBackup,
+        ?int $userId = null,
     ) {
+        // Not promoted, so jobs queued before this existed still get the default when unserialized.
+        $this->userId = $userId;
         $this->timeout = (int) config('minecraft-modpack-modrinth.job_timeout', 2700);
     }
 
@@ -192,6 +200,17 @@ class ModpackJob implements ShouldQueue
 
             throw new ModpackException(trans('minecraft-modpack-modrinth::strings.errors.backup_failed'));
         }
+
+        // Logged like a backup started on the backups page, so it shows who caused it.
+        $activity = Activity::event('server:backup.start')
+            ->subject($server, $backup)
+            ->property(['name' => $backup->name, 'locked' => (bool) $backup->is_locked]);
+
+        if ($user = $this->userId ? User::find($this->userId) : null) {
+            $activity->actor($user);
+        }
+
+        $activity->log();
 
         $deadline = now()->addSeconds((int) config('minecraft-modpack-modrinth.backup_timeout', 900));
 
