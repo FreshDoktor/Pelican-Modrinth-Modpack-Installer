@@ -128,6 +128,7 @@ return [
         'invalid_path' => 'The modpack contains an invalid path: :path',
         'download_failed' => 'Downloading :path failed: :reason',
         'write_failed' => 'Writing the config file :path (:size bytes) failed: :reason',
+        'delete_failed' => 'Deleting :path failed: :reason',
         'daemon_unreachable' => 'The node could not be reached.',
         'size_mismatch' => 'The downloaded file :path does not have the expected size.',
         'metadata_failed' => 'The files were installed, but the installed modpack could not be saved.',

@@ -128,6 +128,7 @@ return [
         'invalid_path' => 'Das Modpack enthält einen ungültigen Pfad: :path',
         'download_failed' => 'Herunterladen von :path fehlgeschlagen: :reason',
         'write_failed' => 'Schreiben der Konfigurationsdatei :path (:size Bytes) fehlgeschlagen: :reason',
+        'delete_failed' => 'Löschen von :path fehlgeschlagen: :reason',
         'daemon_unreachable' => 'Die Node ist nicht erreichbar.',
         'size_mismatch' => 'Die heruntergeladene Datei :path hat nicht die erwartete Größe.',
         'metadata_failed' => 'Die Dateien wurden installiert, aber das installierte Modpack konnte nicht gespeichert werden.',

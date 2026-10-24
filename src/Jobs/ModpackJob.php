@@ -310,7 +310,7 @@ class ModpackJob implements ShouldQueue
             if (!empty($stale)) {
                 $this->progress($service, ['step' => 'cleaning_up', 'current' => null, 'total' => count($stale)]);
 
-                $service->deleteFiles($server, $stale);
+                $this->deleteFiles($server, $service, $stale);
             }
         }
 
@@ -558,7 +558,7 @@ class ModpackJob implements ShouldQueue
         foreach ($chunks as $chunk) {
             $this->progress($service, ['step' => 'removing_files', 'current' => $deleted, 'total' => $total]);
 
-            $service->deleteFiles($server, $chunk);
+            $this->deleteFiles($server, $service, $chunk);
 
             $deleted += count($chunk);
         }
@@ -569,6 +569,40 @@ class ModpackJob implements ShouldQueue
         }
 
         $this->syncModrinthMods($server, $service, null, [], [$installed['project_id']]);
+    }
+
+    /**
+     * Delete files of the pack, naming the file and the daemon's reason if that fails.
+     *
+     * The daemon rejects the whole batch when a single file fails without saying which one, so the
+     * batch is retried file by file to find it. If every file goes through on its own, all is well.
+     *
+     * @param  array<int, string>  $paths
+     *
+     * @throws ModpackException
+     */
+    protected function deleteFiles(Server $server, MinecraftModpackModrinthService $service, array $paths): void
+    {
+        try {
+            $service->deleteFiles($server, $paths);
+
+            return;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
+
+        foreach ($paths as $path) {
+            try {
+                $service->deleteFiles($server, [$path]);
+            } catch (Throwable $exception) {
+                report($exception);
+
+                throw new ModpackException(trans('minecraft-modpack-modrinth::strings.errors.delete_failed', [
+                    'path' => $path,
+                    'reason' => $service->describeDaemonError($exception),
+                ]));
+            }
+        }
     }
 
     protected function deleteTempFile(): void
