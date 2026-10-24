@@ -2,7 +2,7 @@
     "id": "minecraft-modpack-modrinth",
     "name": "Minecraft Modpack Modrinth",
     "author": "Cedric und FreshDoktor",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Easily install, update, and manage minecraft modpacks from modrinth",
     "category": "plugin",
     "url": "https://github.com/FreshDoktor/Pelican-Modrinth-Modpack-Installer",
