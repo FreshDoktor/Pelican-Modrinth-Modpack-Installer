@@ -3,6 +3,7 @@
 namespace CedricKassen\MinecraftModpackModrinth;
 
 use CedricKassen\MinecraftModpackModrinth\Integration\MinecraftModrinthIntegration;
+use CedricKassen\MinecraftModpackModrinth\Livewire\InstalledModsBrowser;
 use CedricKassen\MinecraftModpackModrinth\Livewire\ModpackBrowser;
 use Filament\Contracts\Plugin;
 use Filament\Panel;
@@ -19,6 +20,7 @@ class MinecraftModpackModrinthPlugin implements Plugin
     {
         // Registered by name so Livewire finds the component again on updates, wherever it got embedded.
         Livewire::component('minecraft-modpack-modrinth.modpack-browser', ModpackBrowser::class);
+        Livewire::component('minecraft-modpack-modrinth.installed-mods-browser', InstalledModsBrowser::class);
 
         $id = str($panel->getId())->title();
 

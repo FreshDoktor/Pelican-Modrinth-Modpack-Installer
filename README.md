@@ -16,6 +16,23 @@ The server itself is not changed: install the matching loader and Minecraft vers
 If the [Minecraft Modrinth](../minecraft-modrinth) plugin is installed too, its "Minecraft Mods" page is replaced in the navigation by one that adds the _Modpacks_ and _Installed Modpacks_ tabs, and the standalone modpack page disappears. Minecraft Modrinth itself is not modified and can be updated as usual.
 The mods of an installed modpack are also listed in its _Installed Mods_ tab (as far as they are available on Modrinth).
 
+#### Installed Mods
+
+The _Installed Mods_ tab lists **every jar in the `mods` folder**, not only the ones installed from Modrinth:
+
+| Source | Meaning |
+| --- | --- |
+| Modrinth | Linked to a Modrinth project, updates are offered |
+| Modpack | Placed by the installed modpack |
+| Found on Modrinth | Uploaded by hand, Modrinth knows this exact file (by its SHA-1 hash) |
+| Uploaded | Uploaded by hand, not found on Modrinth |
+| Analysing | Not read yet |
+| File missing | Listed as installed, but the jar is gone |
+
+Uploaded mods are read in the background by the queue worker: name, mod id, version, loader, supported Minecraft version and client-only mods are taken from the metadata inside the jar (`fabric.mod.json`, `quilt.mod.json`, `META-INF/mods.toml`, `META-INF/neoforge.mods.toml`, `mcmod.info`), falling back to the file name. Mods made for another loader than the server's are highlighted.
+
+Any uploaded mod can be **linked to a Modrinth project** afterwards (search by name or paste a Modrinth link). Mods Modrinth recognised are pre-selected with their exact version and can be linked all at once. Linking adds the mod to the installed list of Minecraft Modrinth (`mods/.modrinth-metadata.json`), from then on it is updated like a mod installed from Modrinth, in this tab as well as in the _Mods_ tab. If the installed version is unknown, every compatible version is offered as an update.
+
 ## Features
 
 - **Browse and Search**: Search Modrinth's modpacks compatible with your server's loader and Minecraft version
@@ -33,5 +50,6 @@ The mods of an installed modpack are also listed in its _Installed Mods_ tab (as
 | `MODRINTH_MODPACK_MAX_SIZE_MB` | `500` | Largest `.mrpack` the panel will download |
 | `MODRINTH_MODPACK_JOB_TIMEOUT` | `2700` | Seconds a single operation may run |
 | `MODRINTH_MODPACK_BACKUP_TIMEOUT` | `900` | Seconds to wait for a backup to finish |
+| `MODRINTH_MODPACK_MAX_MOD_SCAN_SIZE_MB` | `64` | Largest mod jar that is read to identify it, bigger ones are only judged by their file name |
 
-Installed modpack data is kept in `.modrinth-modpack.json` in the server's root folder.
+Installed modpack data is kept in `.modrinth-modpack.json` in the server's root folder. What was read from uploaded mods is cached in the panel's cache, _Analyse again_ in the _Installed Mods_ tab throws it away.

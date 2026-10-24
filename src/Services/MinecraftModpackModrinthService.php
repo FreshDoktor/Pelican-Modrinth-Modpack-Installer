@@ -11,7 +11,9 @@ use CedricKassen\MinecraftModpackModrinth\Integration\MinecraftModrinthIntegrati
 use Exception;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -324,6 +326,86 @@ class MinecraftModpackModrinthService
     }
 
     /**
+     * The compatible versions of several projects at once, fetched in parallel. Shares its cache
+     * with getProjectVersions().
+     *
+     * @param  array<int, string>  $projectIds
+     * @return array<string, array<int, mixed>> versions by project id
+     */
+    public function getProjectVersionsBulk(array $projectIds, Server $server): array
+    {
+        $projectIds = array_values(array_unique(array_filter($projectIds, 'is_string')));
+
+        $minecraftLoader = $this->getLoaderFromServer($server);
+
+        if (empty($projectIds) || !$minecraftLoader) {
+            return array_fill_keys($projectIds, []);
+        }
+
+        $minecraftVersion = $this->getMinecraftVersion($server);
+        $minecraftLoader = $minecraftLoader['name'];
+
+        $results = [];
+        $missing = [];
+
+        foreach ($projectIds as $projectId) {
+            $cached = cache()->get($this->getVersionsCacheKey($projectId, $minecraftVersion, $minecraftLoader));
+
+            if (is_array($cached)) {
+                $results[$projectId] = $cached;
+            } else {
+                $missing[] = $projectId;
+            }
+        }
+
+        if (empty($missing)) {
+            return $results;
+        }
+
+        $query = ['loaders' => '["' . $minecraftLoader . '"]'];
+
+        if ($minecraftVersion) {
+            $query['game_versions'] = '["' . $minecraftVersion . '"]';
+        }
+
+        try {
+            $responses = Http::pool(fn (Pool $pool) => array_map(
+                fn (string $projectId) => $pool->as($projectId)
+                    ->asJson()
+                    ->timeout(10)
+                    ->connectTimeout(5)
+                    ->get('https://api.modrinth.com/v2/project/'.rawurlencode($projectId).'/version', $query),
+                $missing
+            ));
+        } catch (Exception $exception) {
+            report($exception);
+
+            $responses = [];
+        }
+
+        foreach ($missing as $projectId) {
+            $response = $responses[$projectId] ?? null;
+
+            // Not cached on purpose, an empty list would hide the update action for a while.
+            if (!$response instanceof Response || !$response->successful()) {
+                $results[$projectId] = [];
+
+                continue;
+            }
+
+            $versions = $response->json();
+            $versions = is_array($versions) ? $versions : [];
+            usort($versions, fn ($a, $b) => strcmp($b['date_published'] ?? '', $a['date_published'] ?? ''));
+
+            cache()->put($this->getVersionsCacheKey($projectId, $minecraftVersion, $minecraftLoader), $versions, now()->addMinutes(empty($versions) ? self::EMPTY_VERSIONS_CACHE_MINUTES : self::VERSIONS_CACHE_MINUTES));
+
+            $results[$projectId] = $versions;
+        }
+
+        return $results;
+    }
+
+    /**
      * Fetch a single version, uncached, so a job always works with what Modrinth has right now.
      *
      * @return array<string, mixed>|null
@@ -556,24 +638,10 @@ class MinecraftModpackModrinthService
         $entries = $modpackProjectId ? $this->resolveModrinthMods($mods, $modpackProjectId) : [];
         $replaceModpacks = array_values(array_filter($replaceModpacks));
 
-        // Same lock as minecraft-modrinth uses for this file.
-        Cache::lock("modrinth_metadata:{$server->id}", 10)->block(5, function () use ($server, $entries, $replaceModpacks) {
-            $fileRepository = app(DaemonFileRepository::class)->setServer($server);
-
-            // Anything but a missing file must abort, rewriting the file from scratch would lose the user's mods.
-            try {
-                $metadata = json_decode($fileRepository->getContent(self::MODRINTH_MODS_METADATA_FILE), true);
-            } catch (FileNotFoundException) {
-                $metadata = null;
-            }
-
-            if ($metadata !== null && !is_array($metadata)) {
-                throw new Exception(self::MODRINTH_MODS_METADATA_FILE.' is not valid JSON, leaving it alone');
-            }
-
+        $this->updateModrinthModsMetadata($server, function (?array $existing) use ($entries, $replaceModpacks) {
             $installed = [];
             $replaced = [];
-            foreach (is_array($metadata['installed_mods'] ?? null) ? $metadata['installed_mods'] : [] as $entry) {
+            foreach ($existing ?? [] as $entry) {
                 if (is_array($entry) && in_array($entry[self::MODPACK_ENTRY_KEY] ?? null, $replaceModpacks, true)) {
                     $replaced[$entry['project_id'] ?? ''] = $entry;
 
@@ -583,8 +651,8 @@ class MinecraftModpackModrinthService
                 $installed[] = $entry;
             }
 
-            if ($metadata === null && empty($entries)) {
-                return true;
+            if ($existing === null && empty($entries)) {
+                return null;
             }
 
             $taken = array_column(array_filter($installed, 'is_array'), 'project_id');
@@ -599,6 +667,47 @@ class MinecraftModpackModrinthService
 
                 $installed[] = $entry;
                 $taken[] = $entry['project_id'];
+            }
+
+            return $installed;
+        });
+    }
+
+    /**
+     * Change the installed list of the minecraft-modrinth plugin under the same lock it uses itself.
+     *
+     * $change gets the raw entries (null while the file doesn't exist) and returns the entries to
+     * write, or null to leave the file as it is. Entries it doesn't know are passed along untouched.
+     *
+     * @param  callable(array<int, mixed>|null): (array<int, mixed>|null)  $change
+     *
+     * @throws Exception
+     */
+    public function updateModrinthModsMetadata(Server $server, callable $change): void
+    {
+        Cache::lock("modrinth_metadata:{$server->id}", 10)->block(5, function () use ($server, $change) {
+            $fileRepository = app(DaemonFileRepository::class)->setServer($server);
+
+            // Anything but a missing file must abort, rewriting the file from scratch would lose the user's mods.
+            try {
+                $content = $fileRepository->getContent(self::MODRINTH_MODS_METADATA_FILE);
+            } catch (FileNotFoundException) {
+                $content = null;
+            }
+
+            $metadata = $content === null ? null : json_decode($content, true);
+
+            // json_decode() returns null for broken JSON too, which must not pass for a missing file.
+            if ($content !== null && !is_array($metadata)) {
+                throw new Exception(self::MODRINTH_MODS_METADATA_FILE.' is not valid JSON, leaving it alone');
+            }
+
+            $existing = $metadata === null ? null : (is_array($metadata['installed_mods'] ?? null) ? array_values($metadata['installed_mods']) : []);
+
+            $installed = $change($existing);
+
+            if ($installed === null) {
+                return true;
             }
 
             $fileRepository->putContent(
