@@ -14,6 +14,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\MaxAttemptsExceededException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 use ZipArchive;
 
@@ -40,6 +42,9 @@ class ModpackJob implements ShouldQueue
 
     // Seconds to wait for a cancelled operation of the same server to wind down.
     protected const LOCK_WAIT_SECONDS = 180;
+
+    // Folder on the local disk the .mrpack is downloaded to.
+    protected const TEMP_DIRECTORY = 'minecraft-modpack-modrinth';
 
     public int $tries = 1;
 
@@ -240,19 +245,20 @@ class ModpackJob implements ShouldQueue
             throw new ModpackException(trans('minecraft-modpack-modrinth::strings.errors.mrpack_too_large'));
         }
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'mrpack_');
+        $disk = Storage::disk('local');
 
-        if ($tempFile === false) {
+        if (!$disk->makeDirectory(self::TEMP_DIRECTORY)) {
             throw new ModpackException(trans('minecraft-modpack-modrinth::strings.errors.unexpected'));
         }
 
-        $this->tempFile = $tempFile;
+        $this->tempFile = self::TEMP_DIRECTORY.'/'.Str::uuid().'.mrpack';
+        $tempPath = $disk->path($this->tempFile);
 
-        $service->downloadMrpack($mrpack['url'], $tempFile);
+        $service->downloadMrpack($mrpack['url'], $tempPath);
 
         $zip = new ZipArchive();
 
-        if ($zip->open($tempFile, ZipArchive::RDONLY) !== true) {
+        if ($zip->open($tempPath, ZipArchive::RDONLY) !== true) {
             throw new ModpackException(trans('minecraft-modpack-modrinth::strings.errors.invalid_mrpack'));
         }
 
@@ -548,8 +554,8 @@ class ModpackJob implements ShouldQueue
 
     protected function deleteTempFile(): void
     {
-        if ($this->tempFile !== null && is_file($this->tempFile)) {
-            @unlink($this->tempFile);
+        if ($this->tempFile !== null) {
+            Storage::disk('local')->delete($this->tempFile);
         }
 
         $this->tempFile = null;

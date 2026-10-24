@@ -2,6 +2,8 @@
 
 namespace CedricKassen\MinecraftModpackModrinth\Services;
 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use ZipArchive;
 
 /**
@@ -17,6 +19,9 @@ class ModJarParser
 
     // Metadata files are tiny, anything bigger is not what we are looking for.
     protected const MAX_METADATA_BYTES = 1024 * 1024;
+
+    // Folder on the local disk the jar is written to while it is read.
+    protected const TEMP_DIRECTORY = 'minecraft-modpack-modrinth';
 
     /**
      * @return JarInfo
@@ -69,20 +74,17 @@ class ModJarParser
         }
 
         // ZipArchive only reads from disk.
-        $tempFile = tempnam(sys_get_temp_dir(), 'modjar_');
-
-        if ($tempFile === false) {
-            return [];
-        }
+        $disk = Storage::disk('local');
+        $tempFile = self::TEMP_DIRECTORY.'/'.Str::uuid().'.jar';
 
         try {
-            if (file_put_contents($tempFile, $bytes) === false) {
+            if (!$disk->put($tempFile, $bytes)) {
                 return [];
             }
 
             $zip = new ZipArchive();
 
-            if ($zip->open($tempFile, ZipArchive::RDONLY) !== true) {
+            if ($zip->open($disk->path($tempFile), ZipArchive::RDONLY) !== true) {
                 return [];
             }
 
@@ -92,7 +94,7 @@ class ModJarParser
                 $zip->close();
             }
         } finally {
-            @unlink($tempFile);
+            $disk->delete($tempFile);
         }
     }
 
