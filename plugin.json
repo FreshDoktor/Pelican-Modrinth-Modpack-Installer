@@ -6,7 +6,7 @@
     "description": "Easily install, update, and manage minecraft modpacks from modrinth",
     "category": "plugin",
     "url": "https://github.com/FreshDoktor/Pelican-Modrinth-Modpack-Installer",
-    "update_url": null,
+    "update_url": "https://hub.pelican.dev/plugins/minecraft-modpack-modrinth/update.json",
     "namespace": "CedricKassen\\MinecraftModpackModrinth",
     "class": "MinecraftModpackModrinthPlugin",
     "panels": [
