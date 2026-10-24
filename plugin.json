@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "Easily install, update, and manage minecraft modpacks from modrinth",
     "category": "plugin",
-    "url": null,
+    "url": "https://github.com/freshgaming-eu/Pelican-Modrinth-Modpack-Installer",
     "update_url": null,
     "namespace": "CedricKassen\\MinecraftModpackModrinth",
     "class": "MinecraftModpackModrinthPlugin",
