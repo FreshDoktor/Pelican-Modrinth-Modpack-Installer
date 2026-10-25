@@ -9,6 +9,7 @@ Originally written by Cedric Kassen. The overview of every installed mod, includ
 ### Modpacks
 
 - **Browse and Search**: Search Modrinth's modpacks compatible with your server's loader and Minecraft version
+- **Filter and Sort**: Narrow the list down by Modrinth's categories (technology, magic, adventure, quests, ...) and sort by relevance, downloads, followers, newest or recently updated
 - **Background Installation**: Downloads every server-side file of the `.mrpack` and applies its `overrides` and `server-overrides`, with live progress on the page; running operations can be cancelled
 - **Backups**: Optionally create a server backup before installing, updating or uninstalling; nothing is touched unless the backup succeeded
 - **Update Detection**: Unchanged files are skipped on update, files dropped by the new version are removed

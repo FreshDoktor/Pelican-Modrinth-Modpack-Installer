@@ -24,7 +24,33 @@ return [
             'author' => 'Author',
             'downloads' => 'Downloads',
             'date_modified' => 'Modified',
+            'categories' => 'Categories',
         ],
+    ],
+
+    'filters' => [
+        'categories' => 'Categories',
+        'sort' => 'Sort by',
+        'sort_options' => [
+            'relevance' => 'Relevance',
+            'downloads' => 'Downloads',
+            'follows' => 'Followers',
+            'newest' => 'Newest',
+            'updated' => 'Recently updated',
+        ],
+    ],
+
+    'categories' => [
+        'adventure' => 'Adventure',
+        'challenging' => 'Challenging',
+        'combat' => 'Combat',
+        'kitchen-sink' => 'Kitchen Sink',
+        'lightweight' => 'Lightweight',
+        'magic' => 'Magic',
+        'multiplayer' => 'Multiplayer',
+        'optimization' => 'Optimization',
+        'quests' => 'Quests',
+        'technology' => 'Technology',
     ],
 
     'version' => [

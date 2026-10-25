@@ -26,6 +26,9 @@ class MinecraftModpackModrinthService
 
     public const ACTIVE_STATUSES = ['queued', 'running'];
 
+    // Sort orders of the Modrinth search, the first one is the default.
+    public const SORT_OPTIONS = ['relevance', 'downloads', 'follows', 'newest', 'updated'];
+
     // Installed list of the minecraft-modrinth plugin, and the key marking entries a modpack added to it.
     public const MODRINTH_MODS_METADATA_FILE = 'mods/.modrinth-metadata.json';
 
@@ -147,8 +150,51 @@ class MinecraftModpackModrinthService
         });
     }
 
-    /** @return array{hits: array<int, array<string, mixed>>, total_hits: int} */
-    public function getProjects(Server $server, int $page = 1, ?string $search = null): array
+    /**
+     * The categories Modrinth lets modpacks be tagged with, e.g. technology, magic or adventure.
+     *
+     * @return array<int, string>
+     */
+    public function getCategories(): array
+    {
+        $categories = cache()->get('modrinth_modpack:categories');
+        if (is_array($categories)) {
+            return $categories;
+        }
+
+        try {
+            /** @var array<int, array{icon: string, name: string, project_type: string, header: string}> $tags */
+            $tags = Http::asJson()
+                ->timeout(5)
+                ->connectTimeout(5)
+                ->throw()
+                ->get('https://api.modrinth.com/v2/tag/category')
+                ->json();
+        } catch (Exception $exception) {
+            report($exception);
+
+            // not caching on purpose, the filter would stay empty otherwise
+            return [];
+        }
+
+        $categories = collect($tags)
+            ->filter(fn ($tag) => ($tag['project_type'] ?? null) === 'modpack' && ($tag['header'] ?? null) === 'categories')
+            ->pluck('name')
+            ->sort()
+            ->values()
+            ->all();
+
+        cache()->put('modrinth_modpack:categories', $categories, now()->addDay());
+
+        return $categories;
+    }
+
+    /**
+     * @param  array<int, string>  $categories  every one of them has to match
+     * @param  string  $sort  one of SORT_OPTIONS
+     * @return array{hits: array<int, array<string, mixed>>, total_hits: int}
+     */
+    public function getProjects(Server $server, int $page = 1, ?string $search = null, array $categories = [], string $sort = 'relevance'): array
     {
         $minecraftLoader = $this->getLoaderFromServer($server);
 
@@ -162,21 +208,33 @@ class MinecraftModpackModrinthService
         $minecraftVersion = $this->getMinecraftVersion($server);
         $minecraftLoader = $minecraftLoader['name'];
 
-        $facets = '[["categories:' . $minecraftLoader . '"]';
+        // Facets in their own list are combined with AND, the ones within a list with OR.
+        $facets = [["categories:$minecraftLoader"]];
 
         if ($minecraftVersion) {
-            $facets .= ',["versions:' . $minecraftVersion . '"]';
+            $facets[] = ["versions:$minecraftVersion"];
         }
 
-        $facets .= ',["project_type:modpack"]]';
+        $facets[] = ['project_type:modpack'];
+
+        $categories = array_values(array_intersect($this->getCategories(), $categories));
+
+        foreach ($categories as $category) {
+            $facets[] = ["categories:$category"];
+        }
+
+        if (!in_array($sort, self::SORT_OPTIONS, true)) {
+            $sort = 'relevance';
+        }
 
         $data = [
             'offset' => ($page - 1) * 20,
             'limit' => 20,
-            'facets' => $facets,
+            'facets' => json_encode($facets, JSON_THROW_ON_ERROR),
+            'index' => $sort,
         ];
 
-        $key = "modrinth_modpack:projects:$minecraftVersion:$minecraftLoader:$page";
+        $key = "modrinth_modpack:projects:$minecraftVersion:$minecraftLoader:$page:$sort:".implode(',', $categories);
 
         if ($search) {
             $data['query'] = $search;

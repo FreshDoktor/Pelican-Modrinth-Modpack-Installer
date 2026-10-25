@@ -25,9 +25,11 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
@@ -169,6 +171,43 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
         }
 
         return $this->versionsCache[$projectId];
+    }
+
+    /** Translated name of a Modrinth category, falling back to the name itself for ones added later. */
+    protected static function getCategoryLabel(string $category): string
+    {
+        $key = "minecraft-modpack-modrinth::strings.categories.$category";
+
+        return Lang::has($key) ? trans($key) : Str::headline($category);
+    }
+
+    /** @return array<string, string> */
+    protected function getCategoryOptions(): array
+    {
+        return collect(MinecraftModpackModrinth::getCategories())
+            ->mapWithKeys(fn (string $category) => [$category => static::getCategoryLabel($category)])
+            ->sort()
+            ->all();
+    }
+
+    /**
+     * The categories of $record, the primary ones first and without the loaders Modrinth lists among them.
+     * The additional ones count for the filter too, so they are listed as well.
+     *
+     * @param  array<string, mixed>  $record
+     * @return array<int, string>
+     */
+    protected function getRecordCategories(array $record): array
+    {
+        $categories = array_unique(array_merge(
+            $record['display_categories'] ?? [],
+            $record['categories'] ?? [],
+            $record['additional_categories'] ?? [],
+        ));
+
+        $categories = array_intersect($categories, MinecraftModpackModrinth::getCategories());
+
+        return array_values(array_map(static::getCategoryLabel(...), $categories));
     }
 
     /** @return array<string, mixed>|null */
@@ -389,7 +428,7 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
     public function table(Table $table): Table
     {
         return $table
-            ->records(function (?string $search, int $page) {
+            ->records(function (?string $search, ?array $filters, int $page) {
                 $server = $this->getServer();
 
                 // The page name follows the query string identifier, the pagination links of the
@@ -416,7 +455,13 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
                     return $paginate([MinecraftModpackModrinth::getInstalledModpackFromModrinth($installed)], 1);
                 }
 
-                $response = MinecraftModpackModrinth::getProjects($server, $page, $search);
+                $response = MinecraftModpackModrinth::getProjects(
+                    $server,
+                    $page,
+                    $search,
+                    $filters['categories']['values'] ?? [],
+                    $filters['sort']['value'] ?? MinecraftModpackModrinthService::SORT_OPTIONS[0],
+                );
 
                 return $paginate($response['hits'], $response['total_hits']);
             })
@@ -431,6 +476,14 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
                     ->label(trans('minecraft-modpack-modrinth::strings.table.columns.title'))
                     ->searchable()
                     ->description(fn (array $record) => (strlen($record['description'] ?? '') > 120) ? substr($record['description'], 0, 120).'...' : ($record['description'] ?? '')),
+                TextColumn::make('categories')
+                    ->label(trans('minecraft-modpack-modrinth::strings.table.columns.categories'))
+                    ->state(fn (array $record) => $this->getRecordCategories($record))
+                    ->badge()
+                    ->color('gray')
+                    ->limitList(3)
+                    ->expandableLimitedList()
+                    ->toggleable(),
                 TextColumn::make('author')
                     ->label(trans('minecraft-modpack-modrinth::strings.table.columns.author'))
                     ->url(fn ($state) => $state ? "https://modrinth.com/user/$state" : null, true)
@@ -447,6 +500,22 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
                     ->tooltip(fn ($state) => $state ? Carbon::parse($state, 'UTC')->timezone(user()->timezone ?? 'UTC')->format($table->getDefaultDateTimeDisplayFormat()) : '')
                     ->toggleable(),
             ])
+            // The installed tab lists a single modpack, nothing to filter there.
+            ->filters($this->tab === self::TAB_ALL ? [
+                SelectFilter::make('categories')
+                    ->label(trans('minecraft-modpack-modrinth::strings.filters.categories'))
+                    ->multiple()
+                    ->options(fn () => $this->getCategoryOptions()),
+                SelectFilter::make('sort')
+                    ->label(trans('minecraft-modpack-modrinth::strings.filters.sort'))
+                    ->options(collect(MinecraftModpackModrinthService::SORT_OPTIONS)->mapWithKeys(fn (string $sort) => [$sort => trans("minecraft-modpack-modrinth::strings.filters.sort_options.$sort")])->all())
+                    ->default(MinecraftModpackModrinthService::SORT_OPTIONS[0])
+                    ->selectablePlaceholder(false)
+                    // Sorting by relevance is what you get anyway, no need to list it as active filter.
+                    ->indicateUsing(fn (array $data) => filled($data['value'] ?? null) && $data['value'] !== MinecraftModpackModrinthService::SORT_OPTIONS[0]
+                        ? trans('minecraft-modpack-modrinth::strings.filters.sort').': '.trans("minecraft-modpack-modrinth::strings.filters.sort_options.{$data['value']}")
+                        : null),
+            ] : [])
             ->recordUrl(function (array $record) {
                 if (!empty($record['unavailable'])) {
                     return null;

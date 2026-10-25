@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-10-25
+
+### Added
+
+- The modpack list can be filtered by Modrinth's categories (e.g. technology, magic, adventure, quests) and sorted by relevance, downloads, followers, newest or recently updated; the categories of each modpack are shown in the list
 
 ### Fixed
 
