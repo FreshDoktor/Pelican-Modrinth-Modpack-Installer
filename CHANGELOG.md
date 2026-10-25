@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- The pagination of the modpack list works again: going to another page no longer stays on the first one
+
 ## 1.1.0 - 2026-10-24
 
 ### Added

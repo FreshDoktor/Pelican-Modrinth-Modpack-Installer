@@ -392,27 +392,33 @@ class ModpackBrowser extends Component implements HasActions, HasSchemas, HasTab
             ->records(function (?string $search, int $page) {
                 $server = $this->getServer();
 
+                // The page name follows the query string identifier, the pagination links of the
+                // table switch the page under the paginator's name.
+                $paginate = fn (array $items, int $total) => new LengthAwarePaginator($items, $total, 20, $page, [
+                    'pageName' => $this->getTablePaginationPageName(),
+                ]);
+
                 if ($this->tab === 'installed') {
                     $installed = $this->getInstalledModpack();
 
                     if (!$installed || $page > 1) {
-                        return new LengthAwarePaginator([], $installed ? 1 : 0, 20, $page);
+                        return $paginate([], $installed ? 1 : 0);
                     }
 
                     if ($search) {
                         $searchLower = strtolower($search);
 
                         if (!str_contains(strtolower($installed['project_title']), $searchLower) && !str_contains(strtolower($installed['project_slug']), $searchLower)) {
-                            return new LengthAwarePaginator([], 0, 20, $page);
+                            return $paginate([], 0);
                         }
                     }
 
-                    return new LengthAwarePaginator([MinecraftModpackModrinth::getInstalledModpackFromModrinth($installed)], 1, 20, $page);
+                    return $paginate([MinecraftModpackModrinth::getInstalledModpackFromModrinth($installed)], 1);
                 }
 
                 $response = MinecraftModpackModrinth::getProjects($server, $page, $search);
 
-                return new LengthAwarePaginator($response['hits'], $response['total_hits'], 20, $page);
+                return $paginate($response['hits'], $response['total_hits']);
             })
             ->paginated([20])
             // Keep the query string apart from the table of a page this is embedded in.
